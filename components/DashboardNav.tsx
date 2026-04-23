@@ -3,7 +3,14 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
+
+type Profile = {
+  full_name: string | null;
+  email: string | null;
+  role: string | null;
+  avatar_url: string | null;
+};
 
 export default function DashboardNav() {
   const pathname = usePathname();
@@ -11,26 +18,40 @@ export default function DashboardNav() {
   const supabase = createClient();
 
   const [signingOut, setSigningOut] = useState(false);
-  const [profile, setProfile] = useState(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
+
+  const loadedRef = useRef(false);
 
   useEffect(() => {
+    if (loadedRef.current) return;
+    loadedRef.current = true;
     loadProfile();
   }, []);
 
   async function loadProfile() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    if (!user) return;
+      const userId = session?.user?.id;
+      if (!userId) return;
 
-    const { data } = await supabase
-      .from('profiles')
-      .select('full_name, email, role, avatar_url')
-      .eq('id', user.id)
-      .single();
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('full_name, email, role, avatar_url')
+        .eq('id', userId)
+        .single();
 
-    setProfile(data || null);
+      if (error) {
+        console.error('Profile load error:', error.message);
+        return;
+      }
+
+      setProfile(data as Profile);
+    } catch (error) {
+      console.error('DashboardNav loadProfile error:', error);
+    }
   }
 
   const links = [
@@ -45,11 +66,14 @@ export default function DashboardNav() {
   async function handleSignOut() {
     try {
       setSigningOut(true);
+
       const { error } = await supabase.auth.signOut();
+
       if (error) {
         alert(error.message);
         return;
       }
+
       router.push('/login');
       router.refresh();
     } finally {
@@ -60,8 +84,6 @@ export default function DashboardNav() {
   return (
     <div style={navWrapper}>
       <div style={navInner}>
-        
-        {/* BRAND */}
         <div style={brandBlock}>
           <div style={logo}>💻</div>
           <div style={titleWrap}>
@@ -70,7 +92,6 @@ export default function DashboardNav() {
           </div>
         </div>
 
-        {/* NAV AREA */}
         <div style={navArea}>
           <div style={menu}>
             {links.map((link) => {
@@ -129,9 +150,7 @@ export default function DashboardNav() {
   );
 }
 
-/* ================= STYLES ================= */
-
-const navWrapper = {
+const navWrapper: CSSProperties = {
   background: '#ffffff',
   borderBottom: '1px solid #e5e7eb',
   position: 'sticky',
@@ -139,7 +158,7 @@ const navWrapper = {
   zIndex: 50,
 };
 
-const navInner = {
+const navInner: CSSProperties = {
   maxWidth: 1280,
   margin: '0 auto',
   padding: '14px 20px',
@@ -149,14 +168,13 @@ const navInner = {
   alignItems: 'center',
 };
 
-/* BRAND IMPROVED */
-const brandBlock = {
+const brandBlock: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 14,
 };
 
-const logo = {
+const logo: CSSProperties = {
   width: 48,
   height: 48,
   borderRadius: 14,
@@ -169,20 +187,20 @@ const logo = {
   boxShadow: '0 10px 24px rgba(37,99,235,0.25)',
 };
 
-const titleWrap = {
+const titleWrap: CSSProperties = {
   display: 'flex',
   flexDirection: 'column',
   gap: 4,
 };
 
-const title = {
+const title: CSSProperties = {
   fontWeight: 800,
   fontSize: 20,
   letterSpacing: '-0.02em',
   color: '#0f172a',
 };
 
-const subtitle = {
+const subtitle: CSSProperties = {
   display: 'inline-flex',
   alignItems: 'center',
   width: 'fit-content',
@@ -197,8 +215,7 @@ const subtitle = {
   border: '1px solid #bfdbfe',
 };
 
-/* NAV */
-const navArea = {
+const navArea: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
@@ -206,13 +223,13 @@ const navArea = {
   flexWrap: 'wrap',
 };
 
-const menu = {
+const menu: CSSProperties = {
   display: 'flex',
   gap: 8,
   flexWrap: 'wrap',
 };
 
-const navLink = {
+const navLink: CSSProperties = {
   padding: '10px 14px',
   borderRadius: 10,
   textDecoration: 'none',
@@ -222,20 +239,19 @@ const navLink = {
   transition: 'all 0.2s ease',
 };
 
-const activeLink = {
+const activeLink: CSSProperties = {
   background: '#2563eb',
   color: '#fff',
   boxShadow: '0 8px 18px rgba(37,99,235,0.25)',
 };
 
-/* RIGHT */
-const rightSection = {
+const rightSection: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 12,
 };
 
-const profileMiniCard = {
+const profileMiniCard: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 10,
@@ -245,14 +261,14 @@ const profileMiniCard = {
   background: '#fff',
 };
 
-const avatarImage = {
+const avatarImage: CSSProperties = {
   width: 38,
   height: 38,
   borderRadius: '50%',
   objectFit: 'cover',
 };
 
-const avatarFallback = {
+const avatarFallback: CSSProperties = {
   width: 38,
   height: 38,
   borderRadius: '50%',
@@ -263,23 +279,23 @@ const avatarFallback = {
   fontWeight: 800,
 };
 
-const profileTextWrap = {
-  lineHeight: 1.2,
+const profileTextWrap: CSSProperties = {
+  lineHeight: '1.2',
 };
 
-const profileName = {
+const profileName: CSSProperties = {
   fontWeight: 700,
   fontSize: 13,
   color: '#0f172a',
 };
 
-const profileRole = {
+const profileRole: CSSProperties = {
   fontSize: 11,
   color: '#64748b',
   textTransform: 'capitalize',
 };
 
-const logoutBtn = {
+const logoutBtn: CSSProperties = {
   padding: '10px 14px',
   borderRadius: 10,
   border: '1px solid #e5e7eb',
